@@ -6,7 +6,7 @@ O objetivo é analisar e explorar um dataset de anúncios de venda de veículos 
 
 ## Funcionalidades do Aplicativo
 
-- Filtros interativos (ano / preço / odômetro / marca)
+- Filtros interativos (ano / preço / odômetro)
 - KPIs dinâmicos (média de preço, média de quilometragem, ano médio)
 - Visualizações interativas:
   - Scatter plot (Preço x Quilometragem)
