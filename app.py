@@ -86,7 +86,7 @@ if st.button("💡 Gerar gráfico de dispersão Preço x Quilometragem"):
         y="price",
         color=color_by if color_by in df_filtered.columns else None,
         size=size_by if size_by in df_filtered.columns else None,
-        hover_data=["model_name", "model_year", "price"],
+        hover_data=["model", "model_year", "price"],
         labels={"odometer": "Quilometragem", "price": "Preço (USD)"},
         title="Preço x Quilometragem"
     )
