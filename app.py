@@ -71,13 +71,24 @@ st.download_button("📥 Baixar dados filtrados (CSV)", csv, "vehicles_filtered.
 
 st.markdown("### Visualizações interativas")
 
-if st.button("📊 Gerar histograma de preços"):
+show_hist = st.checkbox("Mostrar histograma de preço")
+show_scatter = st.checkbox("Mostrar gráfico de dispersão (Preço vs Quilometragem)")
+
+if show_hist:
+    st.subheader("Distribuição de Preço (Histograma)")
     bins = st.slider("Número de bins", 10, 120, 50)
-    hist_fig = px.histogram(df_filtered, x="price", nbins=bins, title="Distribuição de Preço")
+    hist_fig = px.histogram(
+        df_filtered,
+        x="price",
+        nbins=bins,
+        title="Distribuição de Preço dos Veículos",
+        labels={"price": "Preço (USD)"}
+    )
     st.plotly_chart(hist_fig, use_container_width=True)
 
-if st.button("💡 Gerar gráfico de dispersão Preço x Quilometragem"):
-    color_by = st.selectbox("Colorir por:", options=['model_year', 'condition', 'make'])
+if show_scatter:
+    st.subheader("Relação entre Preço e Quilometragem (Scatter)")
+    color_by = st.selectbox("Colorir por:", options=['model_year', 'condition', 'make'], index=0)
     size_by = st.selectbox("Tamanho do ponto por:", options=['price', 'odometer'], index=0)
 
     scatter_fig = px.scatter(
@@ -91,7 +102,7 @@ if st.button("💡 Gerar gráfico de dispersão Preço x Quilometragem"):
         title="Preço x Quilometragem"
     )
     st.plotly_chart(scatter_fig, use_container_width=True)
-
+    
 with st.expander("Sobre este dataset e sugestões de exploração (clique para abrir)"):
     st.markdown(
         """
