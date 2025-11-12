@@ -10,6 +10,7 @@ st.title("🚘 Dashboard de Anúncios de Carros")
 @st.cache_data
 def load_data():
     df = pd.read_csv("data/vehicles.csv")
+
     df.rename(columns={
         "make": "marca",
         "model": "modelo",
@@ -23,13 +24,24 @@ def load_data():
         "paint_color": "cor",
         "is_4wd": "tracao_4wd",
         "date_posted": "data_postagem",
-        "days_listed": "dias_anuncio"
+        "days_listed": "dias_anuncio",
     }, inplace=True)
+
+    # cria a coluna "marca" se necessário
+    if "marca" not in df.columns:
+        if "modelo" in df.columns:
+            df["marca"] = df["modelo"].astype(str).str.split().str[0]
+        elif "model_name" in df.columns:
+            df["marca"] = df["model_name"].astype(str).str.split().str[0]
+        else:
+            st.error("Nenhuma coluna de modelo encontrada no dataset.")
+            st.stop()
+
     return df
 
 df = load_data()
 
-# ---------- FILTROS NA BARRA LATERAL ----------
+# ---------- FILTROS NA BARRA LATERAL ----------S
 st.sidebar.header("Filtros")
 
 marcas = st.sidebar.multiselect(
