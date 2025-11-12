@@ -71,38 +71,58 @@ st.download_button("📥 Baixar dados filtrados (CSV)", csv, "vehicles_filtered.
 
 st.markdown("### Visualizações interativas")
 
-show_hist = st.checkbox("Mostrar histograma de preço")
-show_scatter = st.checkbox("Mostrar gráfico de dispersão (Preço vs Quilometragem)")
+if "model_name" in df_filtered.columns:
+    df_filtered["marca"] = df_filtered["model_name"].str.split().str[0]
+elif "model" in df_filtered.columns:
+    df_filtered["marca"] = df_filtered["model"].str.split().str[0]
+else:
+    df_filtered["marca"] = "Desconhecida"
 
-if show_hist:
+mostrar_hist = st.checkbox("Mostrar histograma de preço")
+mostrar_disp = st.checkbox("Mostrar gráfico de dispersão (Preço x Quilometragem)")
+
+if mostrar_hist:
     st.subheader("Distribuição de Preço (Histograma)")
-    bins = st.slider("Número de bins", 10, 120, 50)
+    bins = st.slider("Número de intervalos (bins)", 10, 120, 50)
     hist_fig = px.histogram(
         df_filtered,
         x="price",
         nbins=bins,
         title="Distribuição de Preço dos Veículos",
-        labels={"price": "Preço (USD)"}
+        labels={"price": "Preço (USD)"},
+        color_discrete_sequence=px.colors.qualitative.Pastel
     )
     st.plotly_chart(hist_fig, use_container_width=True)
 
-if show_scatter:
-    st.subheader("Relação entre Preço e Quilometragem (Scatter)")
-    color_by = st.selectbox("Colorir por:", options=['model_year', 'condition', 'make'], index=0)
-    size_by = st.selectbox("Tamanho do ponto por:", options=['price', 'odometer'], index=0)
+if mostrar_disp:
+    st.subheader("Relação entre Preço e Quilometragem (Dispersão)")
+    colorir_por = st.selectbox(
+        "Colorir os pontos por:",
+        options=["marca", "model_year", "condition"],
+        index=0
+    )
+    tamanho_por = st.selectbox(
+        "Tamanho dos pontos por:",
+        options=["price", "odometer"],
+        index=1
+    )
 
     scatter_fig = px.scatter(
         df_filtered,
         x="odometer",
         y="price",
-        color=color_by if color_by in df_filtered.columns else None,
-        size=size_by if size_by in df_filtered.columns else None,
-        hover_data=["model", "model_year", "price"],
-        labels={"odometer": "Quilometragem", "price": "Preço (USD)"},
-        title="Preço x Quilometragem"
+        color=colorir_por,
+        size=tamanho_por,
+        hover_data=["marca", "model_year", "price"],
+        labels={
+            "odometer": "Quilometragem",
+            "price": "Preço (USD)",
+            "marca": "Marca"
+        },
+        title=f"Preço x Quilometragem ({colorir_por.capitalize()})"
     )
     st.plotly_chart(scatter_fig, use_container_width=True)
-    
+
 with st.expander("Sobre este dataset e sugestões de exploração (clique para abrir)"):
     st.markdown(
         """
