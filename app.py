@@ -9,7 +9,7 @@ st.title("🚘 Dashboard de Anúncios de Carros")
 # ---------- CARREGAR OS DADOS ----------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("vehicles.csv")
+    df = pd.read_csv("data/vehicles.csv")
     df.rename(columns={
         "make": "marca",
         "model": "modelo",
