@@ -2,136 +2,163 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(
-    page_title="Projeto Sprint 5 - Dashboard US Vehicles",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# ---------- CONFIGURAÇÃO DA PÁGINA ----------
+st.set_page_config(page_title="Dashboard de Carros", layout="wide")
+st.title("🚘 Dashboard de Anúncios de Carros")
 
-st.title("Projeto Sprint 5 - Dashboard US Vehicles")
-st.markdown(
-    """
-    **O que é este projeto?**  
-    Pequeno dashboard interativo para explorar anúncios de veículos dos EUA.  
-    Use os filtros na barra lateral para ajustar o conjunto de dados e veja KPIs + gráficos atualizarem em tempo real.
-    """
-)
-
+# ---------- CARREGAR OS DADOS ----------
 @st.cache_data
-def load_data(path: str):
-    df = pd.read_csv(path)
-    df = df.drop_duplicates().reset_index(drop=True)
-    if 'model_name' in df.columns:
-        df['make'] = df['model_name'].str.split().str[0]
+def load_data():
+    df = pd.read_csv("vehicles.csv")
+    df.rename(columns={
+        "make": "marca",
+        "model": "modelo",
+        "model_year": "ano_modelo",
+        "condition": "condicao",
+        "cylinders": "cilindros",
+        "fuel": "combustivel",
+        "odometer": "quilometragem",
+        "transmission": "transmissao",
+        "type": "tipo",
+        "paint_color": "cor",
+        "is_4wd": "tracao_4wd",
+        "date_posted": "data_postagem",
+        "days_listed": "dias_anuncio"
+    }, inplace=True)
     return df
 
-DATA_PATH = "data/vehicles.csv"
-df = load_data(DATA_PATH)
+df = load_data()
 
+# ---------- FILTROS NA BARRA LATERAL ----------
 st.sidebar.header("Filtros")
 
-min_year, max_year = int(df['model_year'].min()), int(df['model_year'].max())
-min_price, max_price = int(df['price'].dropna().min()), int(df['price'].dropna().max())
-min_odometer, max_odometer = int(df['odometer'].dropna().min()), int(df['odometer'].dropna().max())
+marcas = st.sidebar.multiselect(
+    "Marca:",
+    options=df["marca"].dropna().unique(),
+    default=None
+)
 
-year_range = st.sidebar.slider("Ano (year)", min_year, max_year, (min_year, max_year))
-price_range = st.sidebar.slider("Preço (price) — $", min_price, max_price, (min_price, min(max_price, 50000)))
-odometer_max = st.sidebar.slider("Quilometragem máxima (odometer)", min_odometer, max_odometer, max_odometer)
+anos = st.sidebar.slider(
+    "Ano do Modelo:",
+    int(df["ano_modelo"].min()),
+    int(df["ano_modelo"].max()),
+    (int(df["ano_modelo"].min()), int(df["ano_modelo"].max()))
+)
 
-if 'make' in df.columns:
-    marcas = sorted(df['make'].dropna().unique())
-    marca_selecionada = st.sidebar.multiselect("Marca do veículo", options=marcas, default=marcas)
+combustiveis = st.sidebar.multiselect(
+    "Combustível:",
+    options=df["combustivel"].dropna().unique(),
+    default=None
+)
 
-df_filtered = df[
-    (df['model_year'] >= year_range[0]) &
-    (df['model_year'] <= year_range[1]) &
-    (df['price'] >= price_range[0]) &
-    (df['price'] <= price_range[1]) &
-    (df['odometer'] <= odometer_max)
+# Aplicar filtros
+df_filtered = df.copy()
+
+if marcas:
+    df_filtered = df_filtered[df_filtered["marca"].isin(marcas)]
+
+df_filtered = df_filtered[
+    (df_filtered["ano_modelo"] >= anos[0]) & (df_filtered["ano_modelo"] <= anos[1])
 ]
 
-if 'make' in df.columns:
-    df_filtered = df_filtered[df_filtered['make'].isin(marca_selecionada)]
+if combustiveis:
+    df_filtered = df_filtered[df_filtered["combustivel"].isin(combustiveis)]
 
-st.markdown("### Visão geral")
-kpi1, kpi2 = st.columns(2) 
+st.sidebar.write(f"**Total de veículos filtrados:** {len(df_filtered)}")
 
-with kpi1:
-    avg_price = int(df_filtered['price'].dropna().mean()) if not df_filtered['price'].dropna().empty else 0
-    st.metric("Preço médio (USD)", f"${avg_price:,}")
+# ---------- HISTOGRAMA ----------
+st.subheader("📊 Distribuição de Preços")
+variavel_hist = st.selectbox("Escolha a variável para o histograma:", ["marca", "combustivel", "condicao", "tipo"])
+bins = st.slider("Número de divisões (bins):", 10, 100, 30)
 
-with kpi2:
-    avg_km = int(df_filtered['odometer'].dropna().mean()) if not df_filtered['odometer'].dropna().empty else 0
-    st.metric("Quilometragem média", f"{avg_km:,} km")
+fig_hist = px.histogram(
+    df_filtered,
+    x="price",
+    color=variavel_hist,
+    nbins=bins,
+    title="Distribuição de Preços por " + variavel_hist.capitalize(),
+    labels={"price": "Preço (USD)", variavel_hist: variavel_hist.capitalize()},
+    color_discrete_sequence=px.colors.qualitative.Safe
+)
+st.plotly_chart(fig_hist, use_container_width=True)
 
-st.write(f"Resultados filtrados: **{len(df_filtered):,}** linhas (de {len(df):,})")
+# ---------- GRÁFICO DE DISPERSÃO ----------
+st.subheader("💰 Relação entre Preço e Quilometragem")
+colorir_por = st.selectbox("Colorir pontos por:", ["marca", "ano_modelo", "condicao"])
+tamanho_por = st.selectbox("Tamanho do ponto por:", ["price", "quilometragem"])
 
-csv = df_filtered.to_csv(index=False).encode('utf-8')
-st.download_button("📥 Baixar dados filtrados (CSV)", csv, "vehicles_filtered.csv", "text/csv")
+scatter_fig = px.scatter(
+    df_filtered,
+    x="quilometragem",
+    y="price",
+    color=colorir_por if colorir_por in df_filtered.columns else "marca",
+    size=tamanho_por,
+    hover_data=["marca", "ano_modelo", "price"],
+    labels={
+        "quilometragem": "Quilometragem",
+        "price": "Preço (USD)",
+        "marca": "Marca",
+        "ano_modelo": "Ano do Modelo"
+    },
+    title=f"Preço x Quilometragem ({colorir_por.capitalize()})",
+    color_discrete_sequence=px.colors.qualitative.Safe
+)
+st.plotly_chart(scatter_fig, use_container_width=True)
 
-st.markdown("### Visualizações interativas")
+# ---------- NOVOS GRÁFICOS: PREÇO x ANO ----------
+st.subheader("📈 Relação entre Preço e Ano do Modelo")
 
-if "model_name" in df_filtered.columns:
-    df_filtered["marca"] = df_filtered["model_name"].str.split().str[0]
-elif "model" in df_filtered.columns:
-    df_filtered["marca"] = df_filtered["model"].str.split().str[0]
-else:
-    df_filtered["marca"] = "Desconhecida"
+# Gráfico geral
+fig_year = px.scatter(
+    df_filtered,
+    x="ano_modelo",
+    y="price",
+    color="marca",
+    hover_data=["marca", "quilometragem"],
+    labels={
+        "ano_modelo": "Ano do Modelo",
+        "price": "Preço (USD)",
+        "marca": "Marca"
+    },
+    title="Preço x Ano do Modelo (todos os veículos)",
+    color_discrete_sequence=px.colors.qualitative.Safe
+)
+st.plotly_chart(fig_year, use_container_width=True)
 
-mostrar_hist = st.checkbox("Mostrar histograma de preço")
-mostrar_disp = st.checkbox("Mostrar gráfico de dispersão (Preço x Quilometragem)")
+# Separar novos e usados
+if "quilometragem" in df_filtered.columns:
+    novos = df_filtered[df_filtered["quilometragem"] == 0]
+    usados = df_filtered[df_filtered["quilometragem"] > 0]
 
-if mostrar_hist:
-    st.subheader("Distribuição de Preço (Histograma)")
-    bins = st.slider("Número de intervalos (bins)", 10, 120, 50)
-    hist_fig = px.histogram(
-        df_filtered,
-        x="price",
-        nbins=bins,
-        title="Distribuição de Preço dos Veículos",
-        labels={"price": "Preço (USD)"},
-        color_discrete_sequence=px.colors.qualitative.Pastel
-    )
-    st.plotly_chart(hist_fig, use_container_width=True)
+    st.subheader("🚗 Comparativo: Carros Novos (0 km) vs Usados")
+    col_novo, col_usado = st.columns(2)
 
-if mostrar_disp:
-    st.subheader("Relação entre Preço e Quilometragem (Dispersão)")
-    colorir_por = st.selectbox(
-        "Colorir os pontos por:",
-        options=["marca", "model_year", "condition"],
-        index=0
-    )
-    tamanho_por = st.selectbox(
-        "Tamanho dos pontos por:",
-        options=["price", "odometer"],
-        index=1
-    )
+    with col_novo:
+        if not novos.empty:
+            fig_novos = px.scatter(
+                novos,
+                x="ano_modelo",
+                y="price",
+                color="marca",
+                title="Carros Novos (0 km)",
+                labels={"ano_modelo": "Ano do Modelo", "price": "Preço (USD)"},
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            st.plotly_chart(fig_novos, use_container_width=True)
+        else:
+            st.info("Não há carros com 0 km nos filtros atuais.")
 
-    scatter_fig = px.scatter(
-        df_filtered,
-        x="odometer",
-        y="price",
-        color=colorir_por,
-        size=tamanho_por,
-        hover_data=["marca", "model_year", "price"],
-        labels={
-            "odometer": "Quilometragem",
-            "price": "Preço (USD)",
-            "marca": "Marca"
-        },
-        title=f"Preço x Quilometragem ({colorir_por.capitalize()})"
-    )
-    st.plotly_chart(scatter_fig, use_container_width=True)
-
-with st.expander("Sobre este dataset e sugestões de exploração (clique para abrir)"):
-    st.markdown(
-        """
-        - **Dica 1:** Compare modelos por preço médio.  
-        - **Dica 2:** Use o filtro por ano para ver tendências temporais.  
-        - **Dica 3:** Atenção a outliers (preços muito baixos ou quilometragens estranhas).  
-        - **Objetivo do estudo:** preparar um case visual e limpo para apresentar seu entendimento do dataset.
-        """
-    )
-
-st.markdown("---")
-st.caption("Desenvolvido como parte do Projeto Sprint 5 — estudo TripleTen. Dashboard educativo + estilo produto.")
+    with col_usado:
+        if not usados.empty:
+            fig_usados = px.scatter(
+                usados,
+                x="ano_modelo",
+                y="price",
+                color="marca",
+                title="Carros Usados",
+                labels={"ano_modelo": "Ano do Modelo", "price": "Preço (USD)"},
+                color_discrete_sequence=px.colors.qualitative.Safe
+            )
+            st.plotly_chart(fig_usados, use_container_width=True)
+        else:
+            st.info("Não há carros usados nos filtros atuais.")
