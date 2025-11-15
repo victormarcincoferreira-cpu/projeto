@@ -20,5 +20,4 @@ Ative o ambiente virtual do projeto:
 ```bash
 .\.venv\Scripts\activate
 
-## Link do app
 https://projeto-sprint5-lnyu.onrender.com
